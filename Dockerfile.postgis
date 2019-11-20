@@ -1,0 +1,24 @@
+FROM ubuntu:xenial
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -qq -y \
+  && apt-get install -qq -y \
+       postgresql postgis postgresql-contrib \
+  && rm -rf /var/lib/apt/lists/*
+  
+WORKDIR /data
+
+ENV USER=pg
+ENV DB=gis
+
+service postgresql start
+
+su postgres -c "createuser $USER"
+su postgres -c "createdb -EUTF8 -O$USER -Ttempalte0 $DB"
+su postgres -c "echo 'CREATE EXTENSION hstore' | psql $DB"
+su postgres -c "echo 'CREATE EXTENSION btree_gist' | psql $DB"
+su postgres -c "psql $DB </usr/share/postgresql/*/contrib/postgis-*/postgis.sql"
+su postgres -c "psql $DB </usr/share/postgresql/*/contrib/postgis-*/spatial_ref_sys.sql"
+su postgres -c 'echo "GRANT ALL ON geometry_columns TO $USER" | psql $DB'
+su postgres -c 'echo "GRANT ALL ON spatial_ref_sys TO $USER" | psql $DB'

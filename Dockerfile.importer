@@ -1,0 +1,39 @@
+FROM ubuntu:xenial AS build
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -q -y \
+  && apt-get install -q -y \
+      wget unzip libboost-dev libexpat1-dev  build-essential \
+      clang  libosmium-dev  libosmpbf-dev libgeos++-dev \
+      libpq-dev libprotobuf-dev libsparsehash-dev libproj-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+  
+WORKDIR /build
+  
+RUN wget -qO temp.zip https://github.com/MaZderMind/osm-history-renderer/archive/master.zip \
+  && unzip temp.zip \
+  && rm temp.zip
+
+RUN cd osm-history-renderer-master/importer && make
+
+
+
+FROM ubuntu:xenial 
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update -q -y && apt-get install -q -y \
+    libexpat1 libpq5 libproj9 libgeos-3.5.0 \
+    libprotobuf-lite9v5 osmium-tool \
+  && rm -rf /var/lib/apt/lists/*
+ 
+COPY --from=build /build/osm-history-renderer-master/importer/osm-history-importer /usr/bin
+COPY --from=build /build/osm-history-renderer-master/importer/scheme /usr/share/scheme
+
+WORKDIR /data
+
+ENTRYPOINT ["osm-history-importer"]
+
+CMD ["data.osh.pbf"]
